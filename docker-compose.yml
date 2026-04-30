@@ -1,0 +1,7 @@
+services:
+  log-ingestion:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
