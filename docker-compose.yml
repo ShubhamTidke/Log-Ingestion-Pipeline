@@ -4,4 +4,34 @@ services:
     ports:
       - "${PORT:-3000}:3000"
     environment:
+      # Inject an environment variable for the port for Node.js to use
       PORT: "3000"
+      REDIS_URL: "redis://redis:6379"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - public    # outbound internet access
+      - internal  # can reach redis
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    # No `ports` mapping — Redis is unreachable from the host.
+    # The log-ingestion container resolves it via the service name "redis".
+    networks:
+      - internal  # private, no internet
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  public:
+    # Default bridge — gives log-ingestion outbound internet access.
+  internal:
+    internal: true  # cuts off outbound internet for all containers on this network.
