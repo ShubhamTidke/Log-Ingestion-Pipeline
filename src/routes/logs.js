@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { redis } from "../redis.js";
+import { indexLog } from "../elasticsearch.js";
 
 export const logsRouter = Router();
 
@@ -32,11 +33,12 @@ logsRouter.post("/", async (req, res, next) => {
 
     const firstLog = JSON.parse(existingLog);
 
-    // TODO: Store this merged log in Elasticsearch
     const mergedLog = { ...firstLog, ...req.body }; // second log wins on duplicate keys
 
+    await indexLog(mergedLog);
+
     res.status(201).json({ ok: true, status: "complete", log: mergedLog });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 });

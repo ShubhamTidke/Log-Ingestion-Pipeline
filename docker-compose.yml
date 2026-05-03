@@ -7,8 +7,11 @@ services:
       # Inject an environment variable for the port for Node.js to use
       PORT: "3000"
       REDIS_URL: "redis://redis:6379"
+      ELASTICSEARCH_URL: "http://elasticsearch:9200"
     depends_on:
       redis:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     networks:
       - public    # outbound internet access
@@ -30,8 +33,30 @@ services:
       timeout: 5s
       retries: 5
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - logger.level=WARN
+    # No `ports` mapping — Elasticsearch is unreachable from the host.
+    # The log-ingestion container resolves it via the service name "elasticsearch".
+    networks:
+      - internal  # private, no internet
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
 networks:
   public:
     # Default bridge — gives log-ingestion outbound internet access.
   internal:
     internal: true  # cuts off outbound internet for all containers on this network.
+
+volumes:
+  esdata:
