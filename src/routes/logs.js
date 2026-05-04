@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { redis } from "../redis.js";
-import { indexLog } from "../elasticsearch.js";
 
 export const logsRouter = Router();
 
@@ -35,7 +34,8 @@ logsRouter.post("/", async (req, res, next) => {
 
     const mergedLog = { ...firstLog, ...req.body }; // second log wins on duplicate keys
 
-    await indexLog(mergedLog);
+    // Push to stream — trim to ~10,000 entries to prevent unbounded growth
+    await redis.xadd("logs:stream", "MAXLEN", "~", "10000", "*", "log", JSON.stringify(mergedLog));
 
     res.status(201).json({ ok: true, status: "complete", log: mergedLog });
   } catch (error) {
